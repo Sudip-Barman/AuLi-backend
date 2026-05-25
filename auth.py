@@ -11,7 +11,9 @@ SECRET_KEY = os.getenv("SECRET_KEY", "").strip()
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY is missing")
 ALGORITHM = os.getenv("ALGORITHM").strip()
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
+)
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],
