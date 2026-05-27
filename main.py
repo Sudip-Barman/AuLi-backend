@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from datetime import datetime
 import fitz
 import os
-
+from fastapi import Header
 from database import Base, engine, get_db
 from models import (
     ChatMessage,
@@ -21,7 +21,11 @@ from models import (
     Conversation
 )
 
-from routes.auth_routes import router as auth_router, get_current_user
+from routes.auth_routes import (
+    router as auth_router,
+    get_current_user,
+    get_optional_user
+)
 # LOAD ENV
 load_dotenv()
 
@@ -99,7 +103,8 @@ class ChatRequest(BaseModel):
 @app.post("/chat")
 async def chat(
     req: ChatRequest,
-    current_user: dict = Depends(get_current_user),
+    x_guest_token: str = Header(None),
+    current_user: dict | None = Depends(get_optional_user),
     db: Session = Depends(get_db)
                ):
 
@@ -365,24 +370,32 @@ You are an exam paper generator.
         # SAVE CHAT TO DATABASE
         # ==============================
 
-        new_chat = ChatMessage(
-            user_id=current_user["user_id"],
-            email=current_user["email"],
-            user_message=req.message,
-            ai_response=reply,
-            conversation_id=req.conversation_id
-        )
+        if current_user:
 
+            new_chat = ChatMessage(
+                user_id=current_user["user_id"],
+                email=current_user["email"],
+                user_message=req.message,
+                ai_response=reply,
+                conversation_id=req.conversation_id
+            )
 
-        if req.conversation_id:
+            db.add(new_chat)
+            db.commit()
+
+        conversation = None
+
+        if current_user and req.conversation_id:
+
             conversation = db.query(Conversation).filter(
                 Conversation.id == req.conversation_id
             ).first()
 
-        if conversation:
-            conversation.updated_at = datetime.utcnow()   # 👈 important
-        db.add(new_chat)
-        db.commit()
+            if conversation:
+
+                conversation.updated_at = datetime.utcnow()
+
+                db.commit()
 
 
         return {

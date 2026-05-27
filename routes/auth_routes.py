@@ -23,7 +23,10 @@ from auth import (
 
 router = APIRouter()
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="login",
+    auto_error=False
+)
 
 # ---------------- SIGNUP ----------------
 
@@ -93,6 +96,8 @@ def login(user: UserLogin, request: Request, db: Session = Depends(get_db)):
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
 
+    if not token:
+        return None
     credentials_exception = HTTPException(
         status_code=401,
         detail="Could not validate credentials"
@@ -118,3 +123,25 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
     except JWTError:
         raise credentials_exception
+    
+# ---------------- OPTIONAL AUTH ----------------
+
+def get_optional_user(
+    token: str = Depends(oauth2_scheme)
+):
+
+    try:
+
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM]
+        )
+
+        return {
+            "user_id": payload.get("user_id"),
+            "email": payload.get("email")
+        }
+
+    except:
+        return None
